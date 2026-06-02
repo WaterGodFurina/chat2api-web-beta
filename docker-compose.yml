@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  chat2api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat2api
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - WEB_PORT=3000
+      - PROXY_PORT=8080
+      - WEB_HOST=0.0.0.0
+      - MANAGEMENT_API_SECRET=chat2api-secret-change-me
+      - CHAT2API_DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
