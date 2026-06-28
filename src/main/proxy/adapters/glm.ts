@@ -13,7 +13,7 @@ import FormData from 'form-data'
 import mime from 'mime-types'
 import path from 'path'
 import { createAxiosConfig } from '../utils/proxyAgent'
-import { toolsToSystemPrompt, TOOL_WRAP_HINT, hasToolPromptInjected } from '../utils/tools'
+import { toolsToSystemPrompt, TOOL_WRAP_HINT, XML_TOOL_WRAP_HINT, hasToolPromptInjected } from '../utils/tools'
 import { parseToolCallsFromText } from '../utils/toolParser'
 import { 
   createBaseChunk,
@@ -196,7 +196,13 @@ export class GLMAdapter {
    */
   private extractBase64Format(url: string): string {
     const match = url.match(/^data:([^;]+);/)
-    return match ? match[1] : 'application/octet-stream'
+    if (!match) return 'application/octet-stream'
+    let mimeType = match[1]
+    // Normalize non-standard MIME types
+    if (mimeType === 'image/jpg') {
+      mimeType = 'image/jpeg'
+    }
+    return mimeType
   }
 
   /**
@@ -218,7 +224,7 @@ export class GLMAdapter {
 
     if (this.isBase64Data(fileUrl)) {
       mimeType = this.extractBase64Format(fileUrl)
-      const ext = mime.extension(mimeType) || 'bin'
+      const ext = mime.extension(mimeType) || 'png'
       filename = `${uuid()}.${ext}`
       fileData = Buffer.from(this.removeBase64Header(fileUrl), 'base64')
     } else {
@@ -246,8 +252,10 @@ export class GLMAdapter {
         headers: {
           Authorization: `Bearer ${token}`,
           Referer: 'https://chatglm.cn/',
-          ...FAKE_HEADERS,
           ...formData.getHeaders(),
+          ...Object.fromEntries(
+            Object.entries(FAKE_HEADERS).filter(([key]) => key.toLowerCase() !== 'content-type')
+          ),
         },
         maxBodyLength: FILE_MAX_SIZE,
         timeout: 60000,
@@ -256,7 +264,8 @@ export class GLMAdapter {
     )
 
     if (response.status !== 200 || !response.data?.result) {
-      throw new Error(`File upload failed: HTTP ${response.status}`)
+      console.error('[GLM] File upload failed:', response.status, JSON.stringify(response.data)?.substring(0, 500))
+      throw new Error(`File upload failed: HTTP ${response.status} - ${JSON.stringify(response.data)?.substring(0, 200)}`)
     }
 
     console.log('[GLM] File uploaded successfully:', response.data.result.source_id)
@@ -463,15 +472,20 @@ export class GLMAdapter {
     const toolPromptExists = hasToolPromptInjected(messages)
 
     // Check if ToolCallingEngine has injected tool prompt into system message
-    // (when managed_bracket protocol is active, the engine injects the prompt)
     const systemMsg = messages.find(m => m.role === 'system')
-    const engineInjectedToolPrompt = systemMsg && typeof systemMsg.content === 'string' &&
-      (systemMsg.content.includes('## Available Tools') || systemMsg.content.includes('[function_calls]'))
+    const systemMsgText = systemMsg && typeof systemMsg.content === 'string' ? systemMsg.content : ''
+    
+    const engineInjectedToolPrompt = systemMsgText.includes('## Available Tools') || 
+      systemMsgText.includes('[function_calls]') || 
+      systemMsgText.includes('<|CHAT2API|tool_calls>') ||
+      systemMsgText.includes('<tool_calls>')
+
+    // Determine which format is being used by the engine (XML vs Bracket)
+    const isXmlProtocol = systemMsgText.includes('<|CHAT2API|') || systemMsgText.includes('<tool_calls>')
 
     // Inject tools definition into prompt if tools are provided and not already injected
-    // NOTE: When ToolCallingEngine is active (managed_bracket protocol), it handles the
-    // toolsToSystemPrompt injection via the protocol's renderPrompt(). The legacy path
-    // below is only used as a fallback when the engine is NOT active.
+    // NOTE: When ToolCallingEngine is active, it handles the toolsToSystemPrompt injection
+    // via the protocol's renderPrompt(). The legacy path below is only used as a fallback.
     let toolsPrompt = ''
     const needsToolPromptInjection = request.tools && request.tools.length > 0 && !toolPromptExists && !engineInjectedToolPrompt
 
@@ -481,10 +495,10 @@ export class GLMAdapter {
       toolsPrompt = toolsToSystemPrompt(request.tools)
     }
 
-    // Always inject TOOL_WRAP_HINT when tools are active (either from engine or legacy path)
-    // This reinforces the bracket format at the end of the user message, which is critical for GLM
+    // Always inject correct wrap hint when tools are active (either from engine or legacy path)
+    // This reinforces the active format (XML or bracket) at the end of the user message, which is critical for GLM
     if ((needsToolPromptInjection || engineInjectedToolPrompt) && !toolPromptExists) {
-      const wrapHint = TOOL_WRAP_HINT
+      const wrapHint = isXmlProtocol ? XML_TOOL_WRAP_HINT : TOOL_WRAP_HINT
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === 'user') {
           const currentContent = messages[i].content

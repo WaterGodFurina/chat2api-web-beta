@@ -219,6 +219,8 @@ export const webAPI = {
     getByProvider: (providerId: string) => fetchApi(IpcChannels.ACCOUNTS_GET_BY_PROVIDER, providerId),
     getCredits: (accountId: string) => fetchApi(IpcChannels.ACCOUNTS_GET_CREDITS, accountId),
     clearChats: (accountId: string) => fetchApi(IpcChannels.ACCOUNTS_CLEAR_CHATS, accountId),
+    getCredentialValue: (accountId: string, fieldName: string) =>
+      fetchApi(IpcChannels.ACCOUNTS_GET_CREDENTIAL_VALUE, accountId, fieldName),
   },
 
   config: {

@@ -177,6 +177,9 @@ const accountsAPI = {
 
   clearChats: (accountId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(IpcChannels.ACCOUNTS_CLEAR_CHATS, accountId),
+
+  getCredentialValue: (accountId: string, fieldName: string): Promise<{ value: string } | null> =>
+    ipcRenderer.invoke(IpcChannels.ACCOUNTS_GET_CREDENTIAL_VALUE, accountId, fieldName),
 }
 
 type ProviderType = ProviderVendor

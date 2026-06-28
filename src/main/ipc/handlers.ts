@@ -655,6 +655,23 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
     }
   })
 
+  ipcMain.handle(IpcChannels.ACCOUNTS_GET_CREDENTIAL_VALUE, async (_, accountId: string, fieldName: string): Promise<{ value: string } | null> => {
+    try {
+      const account = AccountManager.getById(accountId, true)
+      if (!account) {
+        return null
+      }
+      const credentialValue = account.credentials[fieldName]
+      if (credentialValue === undefined) {
+        return null
+      }
+      return { value: credentialValue }
+    } catch (error) {
+      console.error('[IPC] Failed to get credential value:', error)
+      return null
+    }
+  })
+
   ipcMain.handle(IpcChannels.OAUTH_START_LOGIN, async (_, providerId: string, providerType: ProviderVendor): Promise<OAuthResult> => {
     console.log('Starting OAuth login:', providerId, providerType)
     return await oauthManager.startLogin({

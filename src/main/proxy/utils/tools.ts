@@ -194,3 +194,16 @@ CRITICAL - MUST FOLLOW:
 - Example: [call:default_api:read_file]{"filePath":"/path/to/file"}[/call]
 - Then CLOSE with [/call]
 - Respond with NOTHING else if you are calling a tool`
+
+export const XML_TOOL_WRAP_HINT = `
+
+IMPORTANT: If you need to use a tool, you MUST wrap the tool call inside a Chat2API XML block exactly like:
+<|CHAT2API|tool_calls><|CHAT2API|invoke name="exact_tool_name"><|CHAT2API|parameter name="argument_name"><![CDATA[value]]></|CHAT2API|parameter></|CHAT2API|invoke></|CHAT2API|tool_calls>
+
+CRITICAL - MUST FOLLOW:
+- ALWAYS use the exact tool name as listed in Available Tools (including any prefixes like default_api: or mcp-- if present)
+- ALWAYS wrap parameter values in CDATA sections
+- If a parameter type is number/integer, provide the numeric value (e.g., <![CDATA[42]]>)
+- If a parameter type is boolean, provide true or false (e.g., <![CDATA[true]]>)
+- If a parameter type is object/array, provide valid JSON (e.g., <![CDATA[{"key": "value"}]]>)
+- Respond with NOTHING else if you are calling a tool`

@@ -277,7 +277,7 @@ export function AddAccountDialog({
         name: name.trim(),
         credentials: finalCredentials,
         dailyLimit: dailyLimit ? parseInt(dailyLimit, 10) : undefined,
-        httpProxy: httpProxy.trim() || undefined,
+        httpProxy: httpProxy.trim(),
       }
 
       if (isEditing && editingAccount && onUpdateAccount) {
@@ -409,6 +409,7 @@ export function AddAccountDialog({
                     onChange={handleCredentialChange}
                     t={t}
                     providerId={provider?.id}
+                    editingAccount={editingAccount}
                   />
                 </TabsContent>
 
@@ -455,6 +456,7 @@ export function AddAccountDialog({
                 onChange={handleCredentialChange}
                 t={t}
                 providerId={provider?.id}
+                editingAccount={editingAccount}
               />
             )}
 
@@ -531,9 +533,10 @@ interface CredentialFieldsFormProps {
   onChange: (fieldName: string, value: string) => void
   t: (key: string) => string
   providerId?: string
+  editingAccount?: Account | null
 }
 
-function CredentialFieldsForm({ fields, credentials, onChange, t, providerId }: CredentialFieldsFormProps) {
+function CredentialFieldsForm({ fields, credentials, onChange, t, providerId, editingAccount }: CredentialFieldsFormProps) {
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({})
   const [copiedFields, setCopiedFields] = useState<Record<string, boolean>>({})
 
@@ -547,7 +550,19 @@ function CredentialFieldsForm({ fields, credentials, onChange, t, providerId }: 
   const copyToClipboard = async (fieldName: string, value: string) => {
     if (!value) return
     try {
-      await copyText(value)
+      // If editing an existing account and the value is masked ('***'), fetch the real value from backend
+      let realValue = value
+      if (editingAccount && value === '***') {
+        try {
+          const result = await window.electronAPI.accounts.getCredentialValue(editingAccount.id, fieldName)
+          if (result?.value) {
+            realValue = result.value
+          }
+        } catch (err) {
+          console.error('Failed to fetch credential value:', err)
+        }
+      }
+      await copyText(realValue)
       setCopiedFields(prev => ({ ...prev, [fieldName]: true }))
       setTimeout(() => {
         setCopiedFields(prev => ({ ...prev, [fieldName]: false }))

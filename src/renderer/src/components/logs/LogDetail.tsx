@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Copy, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLogsStore } from '@/stores/logsStore'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const levelColors: Record<string, string> = {
   debug: 'bg-gray-500',
@@ -30,18 +31,7 @@ export function LogDetail() {
   const handleCopy = useCallback(
     async (text: string) => {
       try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text)
-        } else {
-          const textarea = document.createElement('textarea')
-          textarea.value = text
-          textarea.style.position = 'fixed'
-          textarea.style.left = '-9999px'
-          document.body.appendChild(textarea)
-          textarea.select()
-          document.execCommand('copy')
-          document.body.removeChild(textarea)
-        }
+        await copyToClipboard(text)
         toast({
           title: t('common.copied'),
           description: t('logs.copiedToClipboard'),

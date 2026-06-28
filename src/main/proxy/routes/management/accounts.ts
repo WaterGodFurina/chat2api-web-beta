@@ -273,4 +273,37 @@ router.post('/accounts/:id/validate', managementAuthMiddleware, async (ctx: Cont
   }
 })
 
+/**
+ * GET /v0/management/accounts/:id/credential/:fieldName
+ * Get unmasked credential value for a specific field (for copy functionality)
+ */
+router.get('/accounts/:id/credential/:fieldName', managementAuthMiddleware, async (ctx: Context) => {
+  try {
+    const id = ctx.params.id
+    const fieldName = ctx.params.fieldName
+    
+    const account = AccountManager.getById(id, true)
+    
+    if (!account) {
+      ctx.status = 404
+      ctx.body = createErrorResponse('account_not_found', `Account not found: ${id}`)
+      return
+    }
+    
+    const credentialValue = account.credentials[fieldName]
+    if (credentialValue === undefined) {
+      ctx.status = 404
+      ctx.body = createErrorResponse('field_not_found', `Credential field not found: ${fieldName}`)
+      return
+    }
+    
+    ctx.set('Content-Type', 'application/json')
+    ctx.body = createSuccessResponse({ value: credentialValue })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get credential value'
+    ctx.status = 500
+    ctx.body = createErrorResponse('internal_error', errorMessage)
+  }
+})
+
 export default router

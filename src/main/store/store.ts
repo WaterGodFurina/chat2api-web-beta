@@ -700,6 +700,11 @@ class StoreManager {
       updatedAt: Date.now(),
     }
     
+    // Handle httpProxy: empty string means clear/remove the proxy
+    if ('httpProxy' in updates) {
+      updatedAccount.httpProxy = updates.httpProxy?.trim() || undefined
+    }
+    
     if (updates.credentials) {
       updatedAccount.credentials = this.encryptCredentials(updates.credentials)
       console.log('[Store] Encrypted credentials:', updatedAccount.credentials)

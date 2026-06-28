@@ -38,7 +38,6 @@ export function ProxyConfigForm({ onConfigChange }: ProxyConfigFormProps) {
     host: proxyConfig.host,
     enableCors: proxyConfig.enableCors,
     corsOrigin: proxyConfig.corsOrigin,
-    enableStreaming: appConfig?.enableStreaming ?? true,
   })
   
   const [formData, setFormData] = useState({
@@ -46,7 +45,6 @@ export function ProxyConfigForm({ onConfigChange }: ProxyConfigFormProps) {
     host: proxyConfig.host,
     enableCors: proxyConfig.enableCors,
     corsOrigin: proxyConfig.corsOrigin,
-    enableStreaming: appConfig?.enableStreaming ?? true,
   })
   
   const [errors, setErrors] = useState<FormErrors>({})
@@ -60,8 +58,7 @@ export function ProxyConfigForm({ onConfigChange }: ProxyConfigFormProps) {
       host: proxyConfig.host,
       enableCors: proxyConfig.enableCors,
       corsOrigin: proxyConfig.corsOrigin,
-      enableStreaming: appConfig?.enableStreaming ?? true,
-    }
+      }
     setFormData(newFormData)
     initialConfigRef.current = newFormData
   }, [appConfig?.enableStreaming])
@@ -191,7 +188,6 @@ export function ProxyConfigForm({ onConfigChange }: ProxyConfigFormProps) {
     const success = await saveAppConfig({
       proxyPort: newConfig.port,
       proxyHost: newConfig.host,
-      enableStreaming: formData.enableStreaming,
     })
 
     if (success) {
@@ -201,8 +197,7 @@ export function ProxyConfigForm({ onConfigChange }: ProxyConfigFormProps) {
         host: newHost,
         enableCors: formData.enableCors,
         corsOrigin: formData.corsOrigin,
-        enableStreaming: formData.enableStreaming,
-      }
+        }
       toast({
         title: t('common.success'),
         description: t('proxy.proxyConfigUpdated'),

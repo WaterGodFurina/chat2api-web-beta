@@ -288,6 +288,17 @@ function detectToolCallFormat(content: string): ToolCallFormat {
     return 'json'
   }
 
+  // Detect bare JSON tool call format: {"name": "...", "arguments": {...}}
+  // This happens when models output tool calls without XML/bracket wrappers
+  if (/"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{/i.test(content)) {
+    return 'json'
+  }
+
+  // Detect JSON array of tool calls: [{"name": "...", "arguments": {...}}]
+  if (/\[\s*\{\s*"name"\s*:/i.test(content)) {
+    return 'json'
+  }
+
   return 'bracket'
 }
 
@@ -560,6 +571,47 @@ function parseJsonFormat(content: string): { content: string; toolCalls: ToolCal
       }
       rawMatches.push(content)
       return { content: '', toolCalls, rawMatches }
+    }
+
+    // Handle bare JSON tool call: {"name": "...", "arguments": {...}}
+    if (parsed.name && typeof parsed.name === 'string') {
+      toolCalls.push({
+        index: 0,
+        id: `call_${Date.now()}_0`,
+        type: 'function',
+        function: {
+          name: parsed.name,
+          arguments: typeof parsed.arguments === 'string'
+            ? parsed.arguments
+            : JSON.stringify(parsed.arguments || {}),
+        },
+      })
+      rawMatches.push(content)
+      return { content: '', toolCalls, rawMatches }
+    }
+
+    // Handle JSON array of tool calls: [{"name": "...", "arguments": {...}}]
+    if (Array.isArray(parsed)) {
+      for (let i = 0; i < parsed.length; i++) {
+        const tc = parsed[i]
+        if (tc.name) {
+          toolCalls.push({
+            index: i,
+            id: tc.id || `call_${Date.now()}_${i}`,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: typeof tc.arguments === 'string'
+                ? tc.arguments
+                : JSON.stringify(tc.arguments || {}),
+            },
+          })
+        }
+      }
+      if (toolCalls.length > 0) {
+        rawMatches.push(content)
+        return { content: '', toolCalls, rawMatches }
+      }
     }
   } catch {
     // Not valid JSON, try to extract tool_calls pattern

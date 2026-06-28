@@ -151,7 +151,8 @@ interface ParseBlockOptions {
  */
 function normalizeMalformedXml(xml: string, tagName: string): string {
   // Match: </tagName name="..."> → replace with: </tagName><tagName name="...">
-  const pattern = new RegExp(`</${tagName}\\s+name="([^"]*)"\\s*>`, 'g')
+  const escapedTagName = tagName.replace(/[|]/g, '\\$&')
+  const pattern = new RegExp(`</${escapedTagName}\\s+name="([^"]*)"\\s*>`, 'g')
   return xml.replace(pattern, (match, name) => `</${tagName}><${tagName} name="${name}">`)
 }
 

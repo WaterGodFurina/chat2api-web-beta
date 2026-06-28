@@ -238,6 +238,20 @@ export class StreamHandler {
 
               const markers = ['[function_calls]', '<|CHAT2API|tool_calls>']
 
+              // Also detect bare JSON tool call patterns like {"name": "...", "arguments": {...}}
+              const jsonToolCallPattern = /\{\s*"name"\s*:\s*"/
+              if (!isBufferingToolCall && jsonToolCallPattern.test(contentBuffer)) {
+                // Try to parse as JSON tool call
+                try {
+                  const { toolCalls } = parseToolCalls(contentBuffer)
+                  if (toolCalls.length > 0) {
+                    isBufferingToolCall = true
+                  }
+                } catch {
+                  // Not a valid JSON tool call yet, continue buffering
+                }
+              }
+
               // If we are not buffering, check if we should start
               if (!isBufferingToolCall) {
                 let foundMarker = false

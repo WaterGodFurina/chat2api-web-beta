@@ -46,7 +46,7 @@ const profiles: Record<string, ProviderToolProfile> = {
   },
   glm: {
     providerId: 'glm',
-    ...chat2ApiBracketProfile,
+    ...chat2ApiXmlHistoryProfile,
   },
   qwen: {
     providerId: 'qwen',

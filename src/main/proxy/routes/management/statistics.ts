@@ -207,4 +207,43 @@ router.get('/logs', async (ctx: Context) => {
   }
 })
 
+/**
+ * GET /v0/management/request-logs/:id/export
+ * Export full request log entry by ID (for copy functionality)
+ */
+router.get('/request-logs/:id/export', async (ctx: Context) => {
+  try {
+    const id = ctx.params.id
+    const log = storeManager.getRequestLogById(id)
+    
+    if (!log) {
+      ctx.status = 404
+      ctx.body = {
+        success: false,
+        error: {
+          code: 'log_not_found',
+          message: `Request log not found: ${id}`,
+        },
+      } as ManagementApiResponse
+      return
+    }
+    
+    ctx.set('Content-Type', 'application/json')
+    ctx.body = {
+      success: true,
+      data: log,
+    } as ManagementApiResponse<RequestLogEntry>
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    ctx.status = 500
+    ctx.body = {
+      success: false,
+      error: {
+        code: 'internal_error',
+        message: errorMessage,
+      },
+    } as ManagementApiResponse
+  }
+})
+
 export default router

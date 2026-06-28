@@ -171,11 +171,13 @@ router.post('/completions', async (ctx: Context) => {
   const preferredProviderId = modelMapper.getPreferredProvider(request.model)
   const preferredAccountId = modelMapper.getPreferredAccount(request.model)
 
-  // Apply streaming config override
-  if (config.enableStreaming === false && request.stream === true) {
-    console.log('[Chat] Streaming disabled by config, forcing non-streaming mode')
-    request.stream = false
+  // Apply streaming config: respect client's stream preference
+  // If client doesn't specify stream, default to true (streaming mode)
+  if (request.stream === undefined || request.stream === null) {
+    request.stream = true
   }
+  // No longer force disable streaming based on server config
+  // The client's stream preference is respected
 
   // Log system prompt
   const systemPrompt = extractSystemPrompt(request.messages)
@@ -364,56 +366,63 @@ router.post('/completions', async (ctx: Context) => {
       let logEntryId: string | undefined
 
       if (!request.stream) {
-        const logEntry = storeManager.addRequestLog({
-          timestamp: startTime,
-          status: 'success',
-          statusCode: 200,
-          method: 'POST',
-          url: '/v1/chat/completions',
-          model: request.model,
-          actualModel,
-          providerId: provider.id,
-          providerName: provider.name,
-          accountId: account.id,
-          accountName: account.name,
-          apiKeyId,
-          apiKeyName,
-          requestBody: JSON.stringify(request),
-          userInput,
-          systemPrompt,
-          webSearch: request.web_search,
-          reasoningEffort: request.reasoning_effort,
-          responseStatus: 200,
-          responseBody: responseBodyForLog,
-          latency,
-          isStream: false,
-        })
-        logEntryId = logEntry.id
-      } else {
-        const logEntry = storeManager.addRequestLog({
-          timestamp: startTime,
-          status: 'success',
-          statusCode: 200,
-          method: 'POST',
-          url: '/v1/chat/completions',
-          model: request.model,
-          actualModel,
-          providerId: provider.id,
-          providerName: provider.name,
-          accountId: account.id,
-          accountName: account.name,
-          apiKeyId,
-          apiKeyName,
-          requestBody: JSON.stringify(request),
-          userInput,
-          systemPrompt,
-          webSearch: request.web_search,
-          reasoningEffort: request.reasoning_effort,
-          responseStatus: 200,
-          latency,
-          isStream: true,
-        })
-        logEntryId = logEntry.id
+        try {
+          const logEntry = storeManager.addRequestLog({
+            timestamp: startTime,
+            status: 'success',
+            statusCode: 200,
+            method: 'POST',
+            url: '/v1/chat/completions',
+            model: request.model,
+            actualModel,
+            providerId: provider.id,
+            providerName: provider.name,
+            accountId: account.id,
+            accountName: account.name,
+            apiKeyId,
+            apiKeyName,
+            requestBody: JSON.stringify(request),
+            userInput,
+            systemPrompt,
+            webSearch: request.web_search,
+            reasoningEffort: request.reasoning_effort,
+            responseStatus: 200,
+            responseBody: responseBodyForLog,
+            latency,
+            isStream: false,
+          })
+          logEntryId = logEntry.id
+        } catch (logErr) {
+          console.error('[Chat] Failed to add non-stream request log:', logErr)
+        }
+        try {
+          const logEntry = storeManager.addRequestLog({
+            timestamp: startTime,
+            status: 'success',
+            statusCode: 200,
+            method: 'POST',
+            url: '/v1/chat/completions',
+            model: request.model,
+            actualModel,
+            providerId: provider.id,
+            providerName: provider.name,
+            accountId: account.id,
+            accountName: account.name,
+            apiKeyId,
+            apiKeyName,
+            requestBody: JSON.stringify(request),
+            userInput,
+            systemPrompt,
+            webSearch: request.web_search,
+            reasoningEffort: request.reasoning_effort,
+            responseStatus: 200,
+            latency,
+            isStream: true,
+          })
+          logEntryId = logEntry.id
+        } catch (logErr) {
+          console.error('[Chat] Failed to add stream request log:', logErr)
+        }
       }
 
       storeManager.recordRequestInStats(true, latency, request.model, provider.id, account.id)
@@ -465,9 +474,13 @@ router.post('/completions', async (ctx: Context) => {
 
           result.stream.once('end', () => {
             if (logEntryId) {
-              storeManager.updateRequestLog(logEntryId, {
-                responseBody: collectedContent || undefined,
-              })
+              try {
+                storeManager.updateRequestLog(logEntryId, {
+                  responseBody: collectedContent || undefined,
+                })
+              } catch (logErr) {
+                console.error('[Chat] Failed to update stream request log:', logErr)
+              }
             }
             wrapperStream.end()
           })
@@ -489,9 +502,13 @@ router.post('/completions', async (ctx: Context) => {
 
           transformStream.once('end', () => {
             if (logEntryId) {
-              storeManager.updateRequestLog(logEntryId, {
-                responseBody: collectedContent || undefined,
-              })
+              try {
+                storeManager.updateRequestLog(logEntryId, {
+                  responseBody: collectedContent || undefined,
+                })
+              } catch (logErr) {
+                console.error('[Chat] Failed to update stream request log:', logErr)
+              }
             }
             wrapperStream.end()
           })

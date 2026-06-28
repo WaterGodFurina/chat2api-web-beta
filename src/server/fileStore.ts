@@ -29,7 +29,26 @@ export class FileStore {
     try {
       if (fs.existsSync(this.filePath)) {
         const content = fs.readFileSync(this.filePath, 'utf-8')
-        this.data = JSON.parse(content)
+        try {
+          this.data = JSON.parse(content)
+        } catch (parseErr) {
+          console.error('[FileStore] Failed to parse data.json, renaming to data.json.error:', parseErr)
+          // Rename the corrupted file instead of overwriting it
+          const errorFilePath = this.filePath + '.error'
+          try {
+            // If there's already an error file, add a timestamp
+            if (fs.existsSync(errorFilePath)) {
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+              fs.renameSync(errorFilePath, `${errorFilePath}.${timestamp}`)
+            }
+            fs.renameSync(this.filePath, errorFilePath)
+            console.error(`[FileStore] Corrupted data file renamed to: ${errorFilePath}`)
+          } catch (renameErr) {
+            console.error('[FileStore] Failed to rename corrupted file:', renameErr)
+          }
+          this.data = {}
+          this.save()
+        }
       } else {
         this.data = {}
         this.save()
